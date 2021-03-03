@@ -1,47 +1,60 @@
+
+// workInProgress 进行中的 fiber
+
+// 根节点
+let wipRoot = null;
+
+// 下一个单元任务，实际就是 fiber
+let nextUnitOfWork = null;
+
 /**
  * vnode 生产的 虚拟node节点
  * container 节点插入容器 dom 节点
  * */
 function render(vnode, container) {
-  // vnode 生产真实 dom 节点
-  console.log('vnode: ', vnode);
-  const node = createNode(vnode);
-  container.appendChild(node);
+  wipRoot = {
+    type: container.tagName.toLocaleLowerCase(),
+    props: {
+      children: { ...vnode },
+    },
+    stateNode: container,
+  }
+
+  nextUnitOfWork = wipRoot;
+  
 }
 
-function createNode(vnode) {
-  let node;
-  const { type } = vnode;
-  if (typeof type === 'string') {
-    node = updateHostComponent(vnode);
-  }
-  else if (typeof type === 'function') {
-    node = type.prototype.isReactComponent
-      ? updateClassComponent(vnode)
-      : updateFunctionComponent(vnode);
-  }
-  else {
-    node = updateTextComponent(vnode);
-  }
+function createNode(workInProgress) {
+  const { type, props } = workInProgress;
+  const node = document.createElement(type);
+  updateNode(node, props);
   return node;
 }
 
 // 原生标签节点
-function updateHostComponent(vnode) {
-  const { type, props } = vnode;
-  const node = document.createElement(type);
-  updateNode(node, props);
-  reconcileChildren(node, props.children);
-  return node;
+function updateHostComponent(workInProgress) {
+  const { type, props } = workInProgress;
+  if (!workInProgress.stateNode) {
+    workInProgress.stateNode = createNode(workInProgress);
+  }
+  reconcileChildren(workInProgress , props.children);
+
+  console.log('workInProgress--->', workInProgress);
 }
 
 // 更新属性
 function updateNode(node, props) {
-  // react 内部使用的属性
-  const excludes = ['children', 'key', 'ref'];
   Object.keys(props)
-    .filter(k => !excludes.includes(k))
-    .forEach(k => node[k] = props[k]);
+    .forEach(k => {
+      if (k === 'children') {
+        // 子节点是文本节点
+        if (typeof props[k] === 'string') {
+          node.textContent = props[k];
+        }
+      } else {
+        node[k] = props[k];
+      }
+    });
 }
 
 // 文本节点
@@ -71,14 +84,97 @@ function updateClassComponent(vnode) {
 }
 
 // 遍历子节点渲染
-function reconcileChildren(parenNode, children) {
+function reconcileChildren(workInProgress, children) {
+  if (typeof children === 'string' || typeof children === 'number') return;
+
   const newChildren = Array.isArray(children) ? children : [children];
+  let prevNewFiber = null;
   for (let i = 0; i < newChildren.length; i++) {
     const child = newChildren[i];
-    render(child, parenNode);
+    let newFiber = {
+      type: child.type,
+      props: { ...child.props },
+      stateNode: null,
+      child: null,
+      sibling: null,
+      return: workInProgress,
+    }
+
+    if (i === 0) {
+      // 第一个子 fiber
+      workInProgress.child = newFiber;
+    } else {
+      // 给子 fiber 添加兄弟 fiber
+      prevNewFiber.sibling = newFiber;
+    }
+    // 记录上一个 fiber
+    prevNewFiber = newFiber;
   }
 }
 
+/**
+ * Fiber
+ * type 类型
+ * key
+ * props 属性
+ * stateNode 原生标签
+ * child 子节点
+ * sibling 兄弟节点
+ * return 父节点
+ * */ 
+function performUnitOfWork(workInProgress) {
+  const { type } = workInProgress;
 
+  if (typeof type === 'string') {
+    updateHostComponent(workInProgress);
+  }
+
+  if(workInProgress.child) {
+    return workInProgress.child;
+  }
+  
+  let nextFiber = workInProgress;
+  while (nextFiber) {
+    // 存在兄弟节点返回
+    if (nextFiber.sibling) {
+      return nextFiber.sibling;
+    } else {
+      // 往上找父节点
+      nextFiber = nextFiber.return;
+    }
+  }
+}
+
+function workLoop(IdleDeadline) {
+  while (nextUnitOfWork && IdleDeadline.timeRemaining() > 1) {
+    // 执行任务，并返回新的任务
+    nextUnitOfWork = performUnitOfWork(nextUnitOfWork);
+  } 
+
+  if (!nextUnitOfWork && wipRoot) {
+    commitRoot();
+  }
+}
+
+requestIdleCallback(workLoop);
+ 
+function commitRoot() {
+  commitWorker(wipRoot.child);
+  wipRoot = null;
+}
+
+function commitWorker(workInProgress) {
+  if (!workInProgress) return;
+
+  let parenNodeFiber = workInProgress.return;
+  let parenNode = parenNodeFiber.stateNode;
+  
+  if (workInProgress.stateNode) {
+    parenNode.appendChild(workInProgress.stateNode);
+  }
+
+  commitWorker(workInProgress.child);
+  commitWorker(workInProgress.sibling);
+} 
 
 export default { render }

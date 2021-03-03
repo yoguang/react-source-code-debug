@@ -11,9 +11,6 @@
 //   document.getElementById('root')
 // );
 
-// // If you want to start measuring performance in your app, pass a function
-// // to log results (for example: reportWebVitals(console.log))
-// // or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
 // reportWebVitals();
 
 
@@ -41,8 +38,8 @@ const jsx = (
   <div id="wrapper">
     <div>children1</div>
     <a href="https://baidu.com">children2</a>
-    <FunComponent />
-    <ClassComponent name="我是类组件"/>
+    {/* <FunComponent />
+    <ClassComponent name="我是类组件"/> */}
   </div>
 );
 
