@@ -28,8 +28,8 @@ class ClassComponent extends React.Component {
 }
 function FunComponent(props) {
   return (
-    <div>
-      <p>我是函数组件</p>
+    <div className="functionComponent">
+      <p className="func">函数组件: {props.name}</p>
     </div>
   )
 }
@@ -38,8 +38,8 @@ const jsx = (
   <div id="wrapper">
     <div>children1</div>
     <a href="https://baidu.com">children2</a>
-    {/* <FunComponent />
-    <ClassComponent name="我是类组件"/> */}
+    <FunComponent name="娃哈哈"/>
+    {/* <ClassComponent name="我是类组件"/> */}
   </div>
 );
 

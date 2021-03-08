@@ -58,19 +58,18 @@ function updateNode(node, props) {
 }
 
 // 文本节点
-function updateTextComponent(vnode) {
-  const node = document.createTextNode(vnode);
-  return node;
+function updateTextComponent(workInProgress) {
+  if (!workInProgress.stateNode) {
+    // 创建 文本节点
+    workInProgress.stateNode = document.createTextNode(workInProgress.props);
+  }
 }
 
 // 函数组件
-function updateFunctionComponent(vnode) {
-  const { type, props } = vnode;
-  // 这里还是vnode
-  const $vnode = type(props);
-
-  const node = createNode($vnode);
-  return node;
+function updateFunctionComponent(workInProgress) {
+  const { type, props } = workInProgress;
+  const children = type(props);
+  reconcileChildren(workInProgress, children);
 }
 
 // 类组件
@@ -100,6 +99,10 @@ function reconcileChildren(workInProgress, children) {
       return: workInProgress,
     }
 
+    if (typeof child === 'string') {
+      newFiber.props = child;
+    }
+
     if (i === 0) {
       // 第一个子 fiber
       workInProgress.child = newFiber;
@@ -127,6 +130,10 @@ function performUnitOfWork(workInProgress) {
 
   if (typeof type === 'string') {
     updateHostComponent(workInProgress);
+  } else if (typeof type === 'function') {
+    updateFunctionComponent(workInProgress);
+  } else if (typeof type === 'undefined') {
+    updateTextComponent(workInProgress);
   }
 
   if(workInProgress.child) {
@@ -167,13 +174,19 @@ function commitWorker(workInProgress) {
   if (!workInProgress) return;
 
   let parenNodeFiber = workInProgress.return;
+
+  while (!parenNodeFiber.stateNode) {
+    parenNodeFiber = parenNodeFiber.return;
+  }
+   
   let parenNode = parenNodeFiber.stateNode;
   
   if (workInProgress.stateNode) {
     parenNode.appendChild(workInProgress.stateNode);
   }
-
+  // 子节点
   commitWorker(workInProgress.child);
+  // 兄弟节点
   commitWorker(workInProgress.sibling);
 } 
 
