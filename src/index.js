@@ -39,7 +39,7 @@ const jsx = (
     <div>children1</div>
     <a href="https://baidu.com">children2</a>
     <FunComponent name="娃哈哈"/>
-    {/* <ClassComponent name="我是类组件"/> */}
+    <ClassComponent name="我是类组件"/>
   </div>
 );
 

@@ -38,8 +38,6 @@ function updateHostComponent(workInProgress) {
     workInProgress.stateNode = createNode(workInProgress);
   }
   reconcileChildren(workInProgress , props.children);
-
-  console.log('workInProgress--->', workInProgress);
 }
 
 // 更新属性
@@ -73,13 +71,11 @@ function updateFunctionComponent(workInProgress) {
 }
 
 // 类组件
-function updateClassComponent(vnode) {
-  const { type, props } = vnode;
+function updateClassComponent(workInProgress) {
+  const { type, props } = workInProgress;
   const instance = new type(props);
-  const $vnode = instance.render();
-
-  const node = createNode($vnode);
-  return node;
+  const children = instance.render();
+  reconcileChildren(workInProgress, children);
 }
 
 // 遍历子节点渲染
@@ -127,11 +123,14 @@ function reconcileChildren(workInProgress, children) {
  * */ 
 function performUnitOfWork(workInProgress) {
   const { type } = workInProgress;
-
   if (typeof type === 'string') {
     updateHostComponent(workInProgress);
   } else if (typeof type === 'function') {
-    updateFunctionComponent(workInProgress);
+    if (type.prototype.isReactComponent) {
+      updateClassComponent(workInProgress);
+    } else {
+      updateFunctionComponent(workInProgress);
+    }
   } else if (typeof type === 'undefined') {
     updateTextComponent(workInProgress);
   }
@@ -163,7 +162,7 @@ function workLoop(IdleDeadline) {
   }
 }
 
-requestIdleCallback(workLoop);
+window.requestIdleCallback(workLoop);
  
 function commitRoot() {
   commitWorker(wipRoot.child);
