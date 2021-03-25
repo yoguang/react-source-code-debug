@@ -585,6 +585,7 @@ function mountWorkInProgressHook(): Hook {
     // Append to the end of the list
     workInProgressHook = workInProgressHook.next = hook;
   }
+  console.log('workInProgressHook---->', workInProgressHook)
   return workInProgressHook;
 }
 
@@ -1215,9 +1216,10 @@ function updateMutableSource<Source, Snapshot>(
 function mountState<S>(
   initialState: (() => S) | S,
 ): [S, Dispatch<BasicStateAction<S>>] {
+  // 每次 useState 都会执行
   const hook = mountWorkInProgressHook();
   if (typeof initialState === 'function') {
-    // $FlowFixMe: Flow doesn't like mixed types
+    // $FlowFixMe: Flow 不喜欢混合类型
     initialState = initialState();
   }
   hook.memoizedState = hook.baseState = initialState;
@@ -1242,6 +1244,7 @@ function mountState<S>(
 function updateState<S>(
   initialState: (() => S) | S,
 ): [S, Dispatch<BasicStateAction<S>>] {
+  // 每次调用 useStatus 返回的更新 (setState) 函数时执行
   return updateReducer(basicStateReducer, (initialState: any));
 }
 
@@ -1415,6 +1418,7 @@ function mountEffect(
   create: () => (() => void) | void,
   deps: Array<mixed> | void | null,
 ): void {
+  // 初始化
   if (__DEV__) {
     // $FlowExpectedError - jest isn't a global, and isn't recognized outside of tests
     if ('undefined' !== typeof jest) {
@@ -1446,6 +1450,7 @@ function updateEffect(
   create: () => (() => void) | void,
   deps: Array<mixed> | void | null,
 ): void {
+  // 依赖变更执行
   if (__DEV__) {
     // $FlowExpectedError - jest isn't a global, and isn't recognized outside of tests
     if ('undefined' !== typeof jest) {
@@ -1588,8 +1593,11 @@ function mountDebugValue<T>(value: T, formatterFn: ?(value: T) => mixed): void {
 const updateDebugValue = mountDebugValue;
 
 function mountCallback<T>(callback: T, deps: Array<mixed> | void | null): T {
+  // 组件初始化时执行
+  // 创建 useCallback 的 hook
   const hook = mountWorkInProgressHook();
   const nextDeps = deps === undefined ? null : deps;
+  // 缓存回调函数和依赖
   hook.memoizedState = [callback, nextDeps];
   return callback;
 }
@@ -1601,11 +1609,13 @@ function updateCallback<T>(callback: T, deps: Array<mixed> | void | null): T {
   if (prevState !== null) {
     if (nextDeps !== null) {
       const prevDeps: Array<mixed> | null = prevState[1];
+      // 比较依赖，依赖未更新一直返回缓存的回调函数
       if (areHookInputsEqual(nextDeps, prevDeps)) {
         return prevState[0];
       }
     }
   }
+  // 依赖变更，更新回调函数和依赖
   hook.memoizedState = [callback, nextDeps];
   return callback;
 }
@@ -1614,9 +1624,12 @@ function mountMemo<T>(
   nextCreate: () => T,
   deps: Array<mixed> | void | null,
 ): T {
+  // 组件初始化时执行
   const hook = mountWorkInProgressHook();
   const nextDeps = deps === undefined ? null : deps;
+  // 回调函数求值
   const nextValue = nextCreate();
+  // 缓存值和依赖
   hook.memoizedState = [nextValue, nextDeps];
   return nextValue;
 }
@@ -1625,18 +1638,20 @@ function updateMemo<T>(
   nextCreate: () => T,
   deps: Array<mixed> | void | null,
 ): T {
+  // 依赖改变就会执行
   const hook = updateWorkInProgressHook();
   const nextDeps = deps === undefined ? null : deps;
   const prevState = hook.memoizedState;
   if (prevState !== null) {
-    // Assume these are defined. If they're not, areHookInputsEqual will warn.
     if (nextDeps !== null) {
       const prevDeps: Array<mixed> | null = prevState[1];
+      // 深度比较依赖，未改变直接返回 mountMemo 计算得到的值
       if (areHookInputsEqual(nextDeps, prevDeps)) {
         return prevState[0];
       }
     }
   }
+  // 依赖改变，重新求值
   const nextValue = nextCreate();
   hook.memoizedState = [nextValue, nextDeps];
   return nextValue;
